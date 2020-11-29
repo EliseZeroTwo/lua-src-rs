@@ -172,6 +172,11 @@ impl Build {
             }
         }
 
+        #[cfg(feature = "sync")]
+        config.define("lua_lock(L)", "lua_lock_rs(L)");
+        #[cfg(feature = "sync")]
+        config.define("lua_unlock(L)", "lua_unlock_rs(L)");
+
         config.out_dir(&lib_dir).compile(lib_name);
 
         for f in &["lauxlib.h", "lua.h", "luaconf.h", "lualib.h"] {

@@ -1,4 +1,6 @@
 use std::os::raw::{c_char, c_int, c_long, c_void};
+#[cfg(feature = "sync")]
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 extern "C" {
     pub fn luaL_newstate() -> *mut c_void;
@@ -13,6 +15,25 @@ extern "C" {
 #[cfg(feature = "lua51")]
 pub unsafe fn lua_getglobal(state: *mut c_void, k: *const c_char) {
     lua_getfield(state, -10002 /* LUA_GLOBALSINDEX */, k);
+}
+
+#[cfg(feature = "sync")]
+static LOCK_COUNT: AtomicUsize = AtomicUsize::new(0);
+#[cfg(feature = "sync")]
+static UNLOCK_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+#[cfg(feature = "sync")]
+#[no_mangle]
+pub extern "C" fn lua_lock_rs(_state: *mut c_void) -> c_int {
+    LOCK_COUNT.fetch_add(1, Ordering::Relaxed);
+    0
+}
+
+#[cfg(feature = "sync")]
+#[no_mangle]
+pub extern "C" fn lua_unlock_rs(_state: *mut c_void) -> c_int {
+    UNLOCK_COUNT.fetch_add(1, Ordering::Relaxed);
+    0
 }
 
 #[test]
@@ -39,5 +60,13 @@ fn lua_works() {
         assert_eq!(version, "Lua 5.3".as_bytes());
         #[cfg(feature = "lua54")]
         assert_eq!(version, "Lua 5.4".as_bytes());
+
+        #[cfg(feature = "sync")]
+        assert!(LOCK_COUNT.load(Ordering::Relaxed) > 0);
+        #[cfg(feature = "sync")]
+        assert_eq!(
+            LOCK_COUNT.load(Ordering::Relaxed),
+            UNLOCK_COUNT.load(Ordering::Relaxed)
+        );
     }
 }
