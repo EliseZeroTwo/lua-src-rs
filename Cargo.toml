@@ -1,5 +1,5 @@
 [package]
-name = "pico-lua-src"
+name = "picolua-src"
 version = "542.0.0"
 authors = ["EliseZeroTwo <elise@headpat.services>", "Aleksandr Orlenko <zxteam@protonmail.com>"]
 edition = "2018"
