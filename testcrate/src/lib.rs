@@ -6,13 +6,8 @@ extern "C" {
     pub fn lua_getfield(state: *mut c_void, index: c_int, k: *const c_char);
     pub fn lua_tolstring(state: *mut c_void, index: c_int, len: *mut c_long) -> *const c_char;
 
-    #[cfg(any(feature = "lua52", feature = "lua53", feature = "lua54"))]
+    #[cfg(feature = "picolua54")]
     pub fn lua_getglobal(state: *mut c_void, k: *const c_char);
-}
-
-#[cfg(feature = "lua51")]
-pub unsafe fn lua_getglobal(state: *mut c_void, k: *const c_char) {
-    lua_getfield(state, -10002 /* LUA_GLOBALSINDEX */, k);
 }
 
 #[test]
@@ -31,13 +26,7 @@ fn lua_works() {
             slice::from_raw_parts(version_ptr as *const u8, len as usize)
         };
 
-        #[cfg(feature = "lua51")]
-        assert_eq!(version, "Lua 5.1".as_bytes());
-        #[cfg(feature = "lua52")]
-        assert_eq!(version, "Lua 5.2".as_bytes());
-        #[cfg(feature = "lua53")]
-        assert_eq!(version, "Lua 5.3".as_bytes());
-        #[cfg(feature = "lua54")]
-        assert_eq!(version, "Lua 5.4".as_bytes());
+        #[cfg(feature = "picolua54")]
+        assert_eq!(version, "PicoLua 5.4".as_bytes());
     }
 }

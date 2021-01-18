@@ -1,12 +1,13 @@
+#![warn(irrefutable_let_patterns)]
+#![warn(unused_variables)]
+
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug)]
 pub enum Version {
-    Lua51,
-    Lua52,
-    Lua53,
-    Lua54,
+    PicoLua54,
 }
 pub use self::Version::*;
 
@@ -56,10 +57,7 @@ impl Build {
 
         let source_dir_base = Path::new(env!("CARGO_MANIFEST_DIR"));
         let source_dir = match version {
-            Lua51 => source_dir_base.join("lua-5.1.5"),
-            Lua52 => source_dir_base.join("lua-5.2.4"),
-            Lua53 => source_dir_base.join("lua-5.3.6"),
-            Lua54 => source_dir_base.join("lua-5.4.2"),
+            PicoLua54 => source_dir_base.join("picolua-5.4.2"),
         };
 
         if lib_dir.exists() {
@@ -80,41 +78,12 @@ impl Build {
             .opt_level(2)
             .cargo_metadata(false);
 
-        match target {
-            _ if target.contains("linux") => {
-                config.define("LUA_USE_LINUX", None);
-            }
-            _ if target.contains("freebsd") => {
-                config.define("LUA_USE_LINUX", None);
-            }
-            _ if target.contains("netbsd") => {
-                config.define("LUA_USE_LINUX", None);
-            }
-            _ if target.contains("openbsd") => {
-                config.define("LUA_USE_LINUX", None);
-            }
-            _ if target.contains("apple-darwin") => {
-                match version {
-                    Lua51 => config.define("LUA_USE_LINUX", None),
-                    _ => config.define("LUA_USE_MACOSX", None),
-                };
-            }
-            _ if target.contains("windows") => {
-                // Defined in Lua >= 5.3
-                config.define("LUA_USE_WINDOWS", None);
-            }
-            _ => panic!("don't know how to build Lua for {}", target),
-        };
-
-        if let Lua54 = version {
+        if let PicoLua54 = version {
             config.define("LUA_COMPAT_5_3", None);
         }
 
         let lib_name = match version {
-            Lua51 => "lua5.1",
-            Lua52 => "lua5.2",
-            Lua53 => "lua5.3",
-            Lua54 => "lua5.4",
+            PicoLua54 => "picolua5.4",
         };
 
         config
@@ -135,14 +104,12 @@ impl Build {
             .file(source_dir.join("lfunc.c"))
             .file(source_dir.join("lgc.c"))
             .file(source_dir.join("linit.c"))
-            .file(source_dir.join("liolib.c"))
             .file(source_dir.join("llex.c"))
             .file(source_dir.join("lmathlib.c"))
             .file(source_dir.join("lmem.c"))
             .file(source_dir.join("loadlib.c"))
             .file(source_dir.join("lobject.c"))
             .file(source_dir.join("lopcodes.c"))
-            .file(source_dir.join("loslib.c"))
             .file(source_dir.join("lparser.c"))
             .file(source_dir.join("lstate.c"))
             .file(source_dir.join("lstring.c"))
@@ -151,26 +118,12 @@ impl Build {
             .file(source_dir.join("ltablib.c"))
             .file(source_dir.join("ltm.c"))
             .file(source_dir.join("lundump.c"))
-            // skipped: lutf8lib.c (>= 5.3)
+            // skipped: lutf8lib.c (>= 5.3) 
             .file(source_dir.join("lvm.c"))
             .file(source_dir.join("lzio.c"));
 
         match version {
-            Lua51 => {}
-            Lua52 => {
-                config
-                    .file(source_dir.join("lbitlib.c"))
-                    .file(source_dir.join("lcorolib.c"))
-                    .file(source_dir.join("lctype.c"));
-            }
-            Lua53 => {
-                config
-                    .file(source_dir.join("lbitlib.c"))
-                    .file(source_dir.join("lcorolib.c"))
-                    .file(source_dir.join("lctype.c"))
-                    .file(source_dir.join("lutf8lib.c"));
-            }
-            Lua54 => {
+            PicoLua54 => {
                 config
                     .file(source_dir.join("lcorolib.c"))
                     .file(source_dir.join("lctype.c"))
