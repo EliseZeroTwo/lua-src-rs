@@ -520,7 +520,7 @@ static int llex (LexState *ls, SemInfo *seminfo) {
       case '%': {
         next(ls);
         if (check_next1(ls, '=')) return TK_MODEQ;
-        else return '*';
+        else return '%';
       }
       case '^': {
         next(ls);
