@@ -1684,32 +1684,59 @@ static void test_then_block (LexState *ls, int *escapelist) {
   int jf;  /* instruction to skip 'then' code (if condition is false) */
   luaX_next(ls);  /* skip IF or ELSEIF */
   expr(ls, &v);  /* read condition */
-  checknext(ls, TK_THEN);
-  if (ls->t.token == TK_BREAK) {  /* 'if x then break' ? */
-    int line = ls->linenumber;
-    luaK_goiffalse(ls->fs, &v);  /* will jump if condition is true */
-    luaX_next(ls);  /* skip 'break' */
-    enterblock(fs, &bl, 0);  /* must enter block before 'goto' */
-    newgotoentry(ls, luaS_newliteral(ls->L, "break"), line, v.t);
-    while (testnext(ls, ';')) {}  /* skip semicolons */
-    if (block_follow(ls, 0)) {  /* jump is the entire block? */
-      leaveblock(fs);
-      return;  /* and that is it */
+  if (testnext(ls, TK_THEN)) {
+    if (ls->t.token == TK_BREAK) {  /* 'if x then break' ? */
+      int line = ls->linenumber;
+      luaK_goiffalse(ls->fs, &v);  /* will jump if condition is true */
+      luaX_next(ls);  /* skip 'break' */
+      enterblock(fs, &bl, 0);  /* must enter block before 'goto' */
+      newgotoentry(ls, luaS_newliteral(ls->L, "break"), line, v.t);
+      while (testnext(ls, ';')) {}  /* skip semicolons */
+      if (block_follow(ls, 0)) {  /* jump is the entire block? */
+        leaveblock(fs);
+        return;  /* and that is it */
+      }
+      else  /* must skip over 'then' part if condition is false */
+        jf = luaK_jump(fs);
     }
-    else  /* must skip over 'then' part if condition is false */
-      jf = luaK_jump(fs);
-  }
-  else {  /* regular case (not a break) */
-    luaK_goiftrue(ls->fs, &v);  /* skip over block if condition is false */
-    enterblock(fs, &bl, 0);
+    else {  /* regular case (not a break) */
+      luaK_goiftrue(ls->fs, &v);  /* skip over block if condition is false */
+      enterblock(fs, &bl, 0);
+      jf = v.f;
+    }
+    statlist(ls);  /* 'then' part */
+    leaveblock(fs);
+
+    
+    
+
+    if (ls->t.token == TK_ELSE || ls->t.token == TK_ELSEIF)  /* followed by 'else'/'elseif'? */
+      luaK_concat(fs, escapelist, luaK_jump(fs));  /* must jump over it */
+    luaK_patchtohere(fs, jf);
+
+    if (ls->t.token != TK_ELSE && ls->t.token != TK_ELSEIF && ls->t.token != TK_END)
+      error_expected(ls, TK_END);
+  } else {
+    luaK_goiftrue(ls->fs, &v);
     jf = v.f;
+    enterblock(fs, &bl, 0);
+
+    if (ls->t.token == TK_RETURN && ls->current == '\n') {
+      enterlevel(ls);
+      luaX_next(ls);
+      luaK_ret(fs, luaY_nvarstack(fs), 0);
+      testnext(ls, ';');
+      ls->fs->freereg = luaY_nvarstack(ls->fs);  /* free registers */
+      leavelevel(ls);
+    } else {
+      statement(ls);
+    }
+    leaveblock(fs);
+
+    if (ls->t.token == TK_ELSE || ls->t.token == TK_ELSEIF)  /* followed by 'else'/'elseif'? */
+      luaK_concat(fs, escapelist, luaK_jump(fs));  /* must jump over it */
+    luaK_patchtohere(fs, jf);
   }
-  statlist(ls);  /* 'then' part */
-  leaveblock(fs);
-  if (ls->t.token == TK_ELSE ||
-      ls->t.token == TK_ELSEIF)  /* followed by 'else'/'elseif'? */
-    luaK_concat(fs, escapelist, luaK_jump(fs));  /* must jump over it */
-  luaK_patchtohere(fs, jf);
 }
 
 
@@ -1720,9 +1747,12 @@ static void ifstat (LexState *ls, int line) {
   test_then_block(ls, &escapelist);  /* IF cond THEN block */
   while (ls->t.token == TK_ELSEIF)
     test_then_block(ls, &escapelist);  /* ELSEIF cond THEN block */
-  if (testnext(ls, TK_ELSE))
-    block(ls);  /* 'else' part */
-  check_match(ls, TK_END, TK_IF, line);
+  if (testnext(ls, TK_ELSE)) {
+      block(ls);  /* 'else' part */
+      check_match(ls, TK_END, TK_IF, line);
+  } else 
+    testnext(ls, TK_END);
+
   luaK_patchtohere(fs, escapelist);  /* patch escape list to 'if' end */
 }
 
@@ -1851,7 +1881,6 @@ static void exprstat (LexState *ls) {
   }
 }
 
-
 static void retstat (LexState *ls) {
   /* stat -> RETURN [explist] [';'] */
   FuncState *fs = ls->fs;
@@ -1955,7 +1984,6 @@ static void statement (LexState *ls) {
   ls->fs->freereg = luaY_nvarstack(ls->fs);  /* free registers */
   leavelevel(ls);
 }
-
 /* }====================================================================== */
 
 
